@@ -6,55 +6,29 @@
 
 package w2023.handson1;
 
-import java.net.URL;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-
+import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.adapter.csv.CsvSchemaFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.hep.HepPlanner;
-import org.apache.calcite.plan.hep.HepProgram;
-import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.rules.FilterMergeRule;
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
-import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
-import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Table;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.tools.FrameworkConfig;
-import org.apache.calcite.tools.Frameworks;
-import org.apache.calcite.tools.Program;
-import org.apache.calcite.tools.Programs;
-import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelRunners;
-import org.apache.calcite.tools.RuleSets;
+import org.apache.calcite.tools.*;
 
-import com.google.common.collect.ImmutableMap;
+import java.net.URL;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 public class BDS_handson1 {
 
@@ -89,7 +63,32 @@ public class BDS_handson1 {
 	private void runQuery2(RelBuilder builder) {
 		System.err.println("Running Q2: For each continent, show the average happiness score.");
 
-	}
+        builder.scan("country_happiness").as("CH").scan("country_gdp").as("CG")
+                .join(JoinRelType.INNER)
+                .filter(builder.equals(builder.field("CH","Country"),builder.field("CG","Country_name")))
+                .aggregate(builder.groupKey("Continent"),builder.avg(true, "AVG", builder.field("Overall_rank")))
+                .project(builder.field("AVG"),builder.field("Continent"))
+                .sort(builder.desc(builder.field("AVG")));
+
+        final RelNode node = builder.build();
+        if (verbose) {
+            System.out.println(RelOptUtil.toString(node));
+        }
+        //QUERY EXECUTION
+        try {
+            final PreparedStatement preparedStatement = RelRunners.run(node, calConn);
+            ResultSet rs = preparedStatement.executeQuery();
+            ResultSetMetaData rsmd = preparedStatement.getMetaData();
+            System.out.println(rsmd.getColumnName(1)+" "+rsmd.getColumnName(2));
+            while (rs.next()) {
+                System.out.println(rs.getString(1) + " " +rs.getString(2));
+            }
+            rs.close();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
 	// --------------------------------------------------------------------------------------
 
