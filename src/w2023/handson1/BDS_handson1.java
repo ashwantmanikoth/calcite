@@ -53,9 +53,10 @@ public class BDS_handson1 {
 	private void runQuery1(RelBuilder builder) {
 		System.err.println(
 				"Running Q1:  Show the name, overall (happiness) rank and score of the 5 happiest countries (in ascending order of overall rank) ");
-		builder.scan("country_happiness").project(builder.field("Country"),builder.field("Overall_rank"))
-				.sort(builder.desc(builder.field("Overall_rank")))
-				.limit(0,5);
+		builder.scan( "country_happiness")
+				.sort(builder.field("Overall_rank"))
+				.limit(0,5)
+				.project(builder.field("Country"),builder.field("Overall_rank"),builder.field("Score"));
 
 		final RelNode node = builder.build();
 		if (verbose) {
@@ -66,10 +67,11 @@ public class BDS_handson1 {
 			final PreparedStatement preparedStatement = RelRunners.run(node, calConn);
 			ResultSet rs = preparedStatement.executeQuery();
 			ResultSetMetaData rsmd = preparedStatement.getMetaData();
-			System.out.println(rsmd.getColumnName(1)+" "+rsmd.getColumnName(2));
+			System.out.printf("%-25s %-20s %-25s",rsmd.getColumnName(1),rsmd.getColumnName(2),rsmd.getColumnName(3));
+			System.out.print("\n");
 			while (rs.next()) {
-				System.out.println(rs.getString(1) + " " +rs.getString(2));
-			}
+				System.out.printf("%-25s %-20s %-25s",rs.getString(1),rs.getString(2),rs.getString(3));
+				System.out.println("");			}
 			rs.close();
 
 		} catch (Exception ex) {
@@ -91,11 +93,11 @@ public class BDS_handson1 {
                 .join(JoinRelType.INNER)
                 .filter(builder.equals(builder.field("CH","Country"),builder.field("CG","Country_name")))
                 .aggregate(builder.groupKey("Continent"),
-						builder.avg(true, "AVG", builder.field("Overall_rank")))
-                .project(builder.field("AVG"),builder.field("Continent"))
-                .sort(builder.desc(builder.field("AVG")));
+						builder.avg(false, "AVG", builder.field("Score")))
+				.project(builder.field("Continent"),builder.field("AVG"));
 
-        final RelNode node = builder.build();
+
+		final RelNode node = builder.build();
         if (verbose) {
             System.out.println(RelOptUtil.toString(node));
         }
@@ -104,10 +106,12 @@ public class BDS_handson1 {
             final PreparedStatement preparedStatement = RelRunners.run(node, calConn);
             ResultSet rs = preparedStatement.executeQuery();
             ResultSetMetaData rsmd = preparedStatement.getMetaData();
-            System.out.println(rsmd.getColumnName(1)+" "+rsmd.getColumnName(2));
-            while (rs.next()) {
-                System.out.println(rs.getString(1) + " " +rs.getString(2));
-            }
+			System.out.printf("%-15s %-20s",rsmd.getColumnName(1),rsmd.getColumnName(2));
+			System.out.print("\n");
+			while (rs.next()) {
+				System.out.printf("%-15s %-20.5s",rs.getString(1),rs.getString(2));
+				System.out.println("");
+			}
             rs.close();
 
         } catch (Exception ex) {
@@ -125,11 +129,12 @@ public class BDS_handson1 {
 	private void runQuery3(RelBuilder builder) {
 		System.err.println(
 				"Running Q3: For each country with population more than 100 million, show the name of the country, population, and overall (happiness) rank. ");
-		builder.scan("country_gdp").as("CG").scan("country_happiness").as("CH")
+		builder.scan("country_gdp").as("CG")
+				.filter(builder.call(SqlStdOperatorTable.GREATER_THAN, builder.field("Population"), builder.literal(1000000000))).scan("country_happiness").as("CH")
 				.join(JoinRelType.INNER)
 				.filter(builder.equals(builder.field("CH","Country"),builder.field("CG","Country_name")))
-						.filter(builder.call(SqlStdOperatorTable.GREATER_THAN, builder.field("Population"), builder.literal(1000000000)))
 				.project(builder.field("Country"),builder.field("Population"),builder.field("Overall_rank"));
+
 		final RelNode node = builder.build();
 		if (verbose) {
 			System.out.println(RelOptUtil.toString(node));
@@ -138,11 +143,12 @@ public class BDS_handson1 {
 		try {
 			final PreparedStatement preparedStatement = RelRunners.run(node, calConn);
 			ResultSet rs = preparedStatement.executeQuery();
-			ResultSetMetaData rsmd = preparedStatement.getMetaData();
-			System.out.println(rsmd.getColumnName(1)+" "+rsmd.getColumnName(2)+" "+rsmd.getColumnName(3));
+			ResultSetMetaData rsmd = preparedStatement.getMetaData();;
+			System.out.printf("%-15s %-20s %-20s",rsmd.getColumnName(1),rsmd.getColumnName(2),rsmd.getColumnName(3));
+			System.out.print("\n");
 			while (rs.next()) {
-				System.out.println(rs.getString(1) + " " +rs.getString(2)+" "+rs.getString(3));
-			}
+				System.out.printf("%-15s %-20s %-20s", rs.getString(1), rs.getString(2), rs.getString(3));
+				System.out.println("");			}
 			rs.close();
 
 		} catch (Exception ex) {
@@ -160,10 +166,11 @@ public class BDS_handson1 {
 	private void runQuery4(RelBuilder builder) {
 		System.err.println(
 				"Running Q4: For each country with life expectancy more than 80  years, show the name of the country, life expectancy, and overall (happiness) rank. ");
-			builder.scan("country_gdp").as("CG").scan("country_happiness").as("CH")
+			builder.scan("country_gdp").as("CG")
+					.filter(builder.call(SqlStdOperatorTable.GREATER_THAN, builder.field("Life_expectancy"), builder.literal(80)))
+					.scan("country_happiness").as("CH")
 					.join(JoinRelType.INNER)
 					.filter(builder.equals(builder.field("CH","Country"),builder.field("CG","Country_name")))
-									.filter(builder.call(SqlStdOperatorTable.GREATER_THAN, builder.field("Life_expectancy"), builder.literal(80)))
 					.project(builder.field("Country"),builder.field("Life_expectancy"),builder.field("Overall_rank"));
 
 		final RelNode node = builder.build();
@@ -175,9 +182,11 @@ public class BDS_handson1 {
 			final PreparedStatement preparedStatement = RelRunners.run(node, calConn);
 			ResultSet rs = preparedStatement.executeQuery();
 			ResultSetMetaData rsmd = preparedStatement.getMetaData();
-			System.out.println(rsmd.getColumnName(1)+" "+rsmd.getColumnName(2)+" "+rsmd.getColumnName(3));
+			System.out.printf("%-15s %-20s %-20s",rsmd.getColumnName(1),rsmd.getColumnName(2),rsmd.getColumnName(3));
+			System.out.print("\n");
 			while (rs.next()) {
-				System.out.println(rs.getString(1) + " " +rs.getString(2)+" "+rs.getString(3));
+				System.out.printf("%-15s %-20s %-20s",rs.getString(1),rs.getString(2),rs.getString(3));
+				System.out.println("");
 			}
 			rs.close();
 
@@ -211,8 +220,8 @@ public class BDS_handson1 {
 			while (rs.next()) {
 				String country = rs.getString(1);
 				int rank = rs.getInt(2);
-				 System.out.println("country: " + country + " -- rank: "+
-				 rank);
+//				 System.out.println("country: " + country + " -- rank: "+
+//				 rank);
 			}
 			rs.close();
 		} catch (SQLException e) {
